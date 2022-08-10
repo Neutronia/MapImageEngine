@@ -3,7 +3,9 @@
 namespace FaigerSYS\MapImageEngine\storage;
 
 use InvalidArgumentException;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
 use pocketmine\utils\BinaryStream;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -48,6 +50,8 @@ class MapImage{
 	/** @var UUID */
 	private $uuid;
 
+	private PacketSerializerContext $context;
+
 	/**
 	 * @param int               $blocks_width
 	 * @param int               $blocks_height
@@ -67,6 +71,7 @@ class MapImage{
 		$this->default_chunk_width = $default_chunk_width;
 		$this->default_chunk_height = $default_chunk_height;
 		$this->setChunks($chunks);
+		$this->context = new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary());
 	}
 
 	/**
@@ -174,7 +179,7 @@ class MapImage{
 		//foreach ($this->chunks as $chunk) {
 		//$stream->putPacket($chunk->generateMapImagePacket());
 		//}
-		return PacketBatch::fromPackets(...array_map(function(MapImageChunk $chunk){
+		return PacketBatch::fromPackets($this->context, ...array_map(function(MapImageChunk $chunk){
 			return $chunk->generateMapImagePacket();
 		}, $this->chunks));
 	}

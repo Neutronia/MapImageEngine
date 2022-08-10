@@ -3,8 +3,10 @@
 namespace FaigerSYS\MapImageEngine\storage;
 
 use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
+use pocketmine\network\mcpe\protocol\ClientboundMapItemDataPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
+use function spl_object_hash;
 
 class ImageStorage{
 
@@ -23,8 +25,8 @@ class ImageStorage{
 	/** @var string[] */
 	private array $names = [];
 
-	/** @var PacketBatch[] */
-	private array $stream_cache = [];
+	/** @var ClientboundMapItemDataPacket[] */
+	private array $mapDataCaches = [];
 
 	private PacketSerializerContext $context;
 
@@ -109,7 +111,7 @@ class ImageStorage{
 	 */
 	public function regeneratePacketsCache(MapImage $image = null, int $chunk_x = null, int $chunk_y = null) : void{
 		if($image === null){
-			$this->cache = [];
+			$this->mapDataCaches = [];
 			foreach($this->images as $image){
 				$this->regeneratePacketsCache($image);
 			}
@@ -117,18 +119,16 @@ class ImageStorage{
 			if(!isset($this->images[spl_object_hash($image)])){
 				return;
 			}
-
 			if($chunk_x === null && $chunk_y === null){
 				foreach($image->getChunks() as $chunks){
 					foreach($chunks as $chunk){
-						$this->stream_cache[$chunk->getMapId()] = PacketBatch::fromPackets($this->context, $chunk->generateMapImagePacket());
+						$this->mapDataCaches[$chunk->getMapId()] = $chunk->generateMapImagePacket();
 					}
 				}
 			}else{
 				$chunk = $image->getChunk($chunk_x, $chunk_y);
 				if($chunk !== null){
-					$stream = PacketBatch::fromPackets($this->context, $chunk->generateMapImagePacket());
-					$this->stream_cache[$chunk->getMapId()] = $stream;
+					$this->mapDataCaches[$chunk->getMapId()] = $chunk->generateMapImagePacket();
 				}
 			}
 		}
@@ -145,17 +145,16 @@ class ImageStorage{
 		if(!isset($this->images[spl_object_hash($image)])){
 			return;
 		}
-
 		if($chunk_x === null && $chunk_y === null){
 			foreach($image->getChunks() as $chunks){
 				foreach($chunks as $chunk){
-					unset($this->stream_cache[$chunk->getMapId()]);
+					unset($this->mapDataCaches[$chunk->getMapId()]);
 				}
 			}
 		}else{
 			$chunk = $image->getChunk($chunk_x, $chunk_y);
 			if($chunk !== null){
-				unset($this->stream_cache[$chunk->getMapId()]);
+				unset($this->mapDataCaches[$chunk->getMapId()]);
 			}
 		}
 	}
@@ -166,7 +165,7 @@ class ImageStorage{
 	 * @param int $map_id
 	 */
 	public function removePacketCache(int $map_id) : void{
-		unset($this->stream_cache[$map_id]);
+		unset($this->mapDataCaches[$map_id]);
 	}
 
 	/**
@@ -212,17 +211,17 @@ class ImageStorage{
 	}
 
 	/**
-	 * Returns cached batched map image packet
+	 * Returns cached map image packet
 	 *
 	 * @param int $map_id
 	 *
-	 * @return PacketBatch
+	 * @return ?ClientboundMapItemDataPacket
 	 */
-	public function getCachedBatch(int $map_id) : PacketBatch{
-		if(isset($this->stream_cache[$map_id])){
-			return clone $this->stream_cache[$map_id];
+	public function getCachedPacket(int $map_id) : ?ClientboundMapItemDataPacket{
+		if(isset($this->mapDataCaches[$map_id])){
+			return clone $this->mapDataCaches[$map_id];
 		}
-		return PacketBatch::fromPackets($this->context);
+		return null;
 	}
 
 }

@@ -25,7 +25,7 @@ class FilledMap extends Item{
 		return $this;
 	}
 
-	protected function updateMapData() : void{
+	public function updateMapData() : void{
 		$plugin = MapImageEngine::getInstance();
 
 		$mie_data = $this->getImageData();

@@ -8,12 +8,16 @@ use FaigerSYS\MapImageEngine\storage\ImageStorage;
 use FaigerSYS\MapImageEngine\storage\MapImage;
 use FaigerSYS\MapImageEngine\storage\OldFormatConverter;
 use FaigerSYS\MapImageEngine\TranslateStrings as TS;
-use pocketmine\block\tile\ItemFrame;
+use pocketmine\block\ItemFrame as BlockItemFrame;
+use pocketmine\block\tile\ItemFrame as TileItemFrame;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerPostChunkSendEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\world\ChunkLoadEvent;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\MapInfoRequestPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\TextFormat as CLR;
@@ -142,31 +146,75 @@ class MapImageEngine extends PluginBase implements Listener{
 		return $this->storage;
 	}
 
-	/**
-	 * @ignoreCancelled true
-	 */
 	public function onRequest(DataPacketReceiveEvent $e){
 		if($e->getPacket() instanceof MapInfoRequestPacket){
-			$stream = $this->getImageStorage()->getCachedBatch($e->getPacket()->mapId);
-			if($stream !== null){
-				$e->getOrigin()->queueCompressed($this->getServer()->prepareBatch($stream, $e->getOrigin()->getCompressor()));
+			$packet = $this->getImageStorage()->getCachedPacket($e->getPacket()->mapId);
+			if($packet !== null){
+				$packet->origin = BlockPosition::fromVector3(new Vector3(0, 0, 0));
+				$e->getOrigin()->sendDataPacket($packet);
 			}
 			$e->cancel();
 		}
 	}
 
-	/**
-	 * @priority LOW
-	 * @notHandler
-	 */
-	public function onChunkLoad(ChunkLoadEvent $e) : void{
-		foreach($e->getChunk()->getTiles() as $frame){
-			if($frame instanceof ItemFrame){
-				$item = $frame->getItem();
-				if($item instanceof FilledMap){
-					$frame->setItem($item);
-				}
-			}
-		}
-	}
+//	public function onChunkSend(PlayerPostChunkSendEvent $event) : void{
+//		$player = $event->getPlayer();
+//		$chunk = $event->getPlayer()->getWorld()->getChunk($event->getChunkX(), $event->getChunkZ());
+//		if($chunk === null){
+//			return;
+//		}
+//		$blocks = [];
+//
+//		foreach($chunk->getTiles() as $tile){
+//			if($tile instanceof TileItemFrame){
+//				$blocks[] = $tile->getPosition();
+//			}
+//		}
+//		$blockCount = count($blocks);
+//		if($blockCount > 0){
+//			foreach($player->getWorld()->createBlockUpdatePackets($blocks) as $packet){
+//				$player->getNetworkSession()->sendDataPacket($packet);
+//			}
+//		}
+//	}
+//
+//	/**
+//	 * @priority HIGH
+//	 */
+//	public function onChunkLoad(ChunkLoadEvent $e) : void{
+//		$chunk = $e->getChunk();
+//		/** @var Position[] $blocks */
+//		$blocks = [];
+//
+//		foreach($chunk->getTiles() as $tile){
+//			if($tile instanceof TileItemFrame){
+//				$blocks[] = $tile->getPosition();
+//			}
+//		}
+//		$blockCount = count($blocks);
+//		if($blockCount > 0){
+//			foreach($e->getWorld()->getPlayers() as $player){
+//				foreach($e->getWorld()->createBlockUpdatePackets($blocks) as $packet){
+//					$player->getNetworkSession()->sendDataPacket($packet);
+//				}
+//			}
+//		}
+//		foreach($chunk->getTiles() as $frame){
+//			if($frame instanceof TileItemFrame){
+//				$blocks[] = $frame->getPosition();
+//				$frameBlock = $frame->getBlock();
+//				if($frameBlock instanceof BlockItemFrame){
+//					$item = $frame->getItem();
+//					if($item instanceof FilledMap){
+//						$item->updateMapData();
+//						$frame->setItem($item);
+//						$frameBlock->setFramedItem($item);
+//					}
+//				}
+//			}
+//		}
+//		if(count($blocks) > 0){
+//			$this->getServer()->broadcastPackets($e->getWorld()->getViewersForPosition($blocks[0]), $e->getWorld()->createBlockUpdatePackets($blocks));
+//		}
+//	}
 }
