@@ -4,7 +4,6 @@ namespace FaigerSYS\MapImageEngine\storage;
 
 use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\ClientboundMapItemDataPacket;
-use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
 use function spl_object_hash;
 
@@ -224,4 +223,11 @@ class ImageStorage{
 		return null;
 	}
 
+	/**
+	 * @phpstan-return array<int, ClientboundMapItemDataPacket>
+	 * @return ClientboundMapItemDataPacket[]
+	 */
+	public function getCachedPackets() : array{
+		return $this->mapDataCaches;
+	}
 }

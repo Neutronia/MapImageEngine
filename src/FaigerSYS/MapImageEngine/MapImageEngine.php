@@ -11,16 +11,18 @@ use FaigerSYS\MapImageEngine\TranslateStrings as TS;
 use pocketmine\block\ItemFrame as BlockItemFrame;
 use pocketmine\block\tile\ItemFrame as TileItemFrame;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerPostChunkSendEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
-use pocketmine\event\world\ChunkLoadEvent;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\MapInfoRequestPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\TextFormat as CLR;
+use function count;
 
 class MapImageEngine extends PluginBase implements Listener{
 	use SingletonTrait;
@@ -157,64 +159,34 @@ class MapImageEngine extends PluginBase implements Listener{
 		}
 	}
 
-//	public function onChunkSend(PlayerPostChunkSendEvent $event) : void{
-//		$player = $event->getPlayer();
-//		$chunk = $event->getPlayer()->getWorld()->getChunk($event->getChunkX(), $event->getChunkZ());
-//		if($chunk === null){
-//			return;
-//		}
-//		$blocks = [];
-//
-//		foreach($chunk->getTiles() as $tile){
-//			if($tile instanceof TileItemFrame){
-//				$blocks[] = $tile->getPosition();
-//			}
-//		}
-//		$blockCount = count($blocks);
-//		if($blockCount > 0){
-//			foreach($player->getWorld()->createBlockUpdatePackets($blocks) as $packet){
-//				$player->getNetworkSession()->sendDataPacket($packet);
-//			}
-//		}
-//	}
-//
-//	/**
-//	 * @priority HIGH
-//	 */
-//	public function onChunkLoad(ChunkLoadEvent $e) : void{
-//		$chunk = $e->getChunk();
-//		/** @var Position[] $blocks */
-//		$blocks = [];
-//
-//		foreach($chunk->getTiles() as $tile){
-//			if($tile instanceof TileItemFrame){
-//				$blocks[] = $tile->getPosition();
-//			}
-//		}
-//		$blockCount = count($blocks);
-//		if($blockCount > 0){
-//			foreach($e->getWorld()->getPlayers() as $player){
-//				foreach($e->getWorld()->createBlockUpdatePackets($blocks) as $packet){
-//					$player->getNetworkSession()->sendDataPacket($packet);
-//				}
-//			}
-//		}
-//		foreach($chunk->getTiles() as $frame){
-//			if($frame instanceof TileItemFrame){
-//				$blocks[] = $frame->getPosition();
-//				$frameBlock = $frame->getBlock();
-//				if($frameBlock instanceof BlockItemFrame){
-//					$item = $frame->getItem();
-//					if($item instanceof FilledMap){
-//						$item->updateMapData();
-//						$frame->setItem($item);
-//						$frameBlock->setFramedItem($item);
-//					}
-//				}
-//			}
-//		}
-//		if(count($blocks) > 0){
-//			$this->getServer()->broadcastPackets($e->getWorld()->getViewersForPosition($blocks[0]), $e->getWorld()->createBlockUpdatePackets($blocks));
-//		}
-//	}
+	public function onPlayerPostChunkSend(PlayerPostChunkSendEvent $event) : void{
+		$player = $event->getPlayer();
+		$chunk = $player->getWorld()->getChunk($event->getChunkX(), $event->getChunkZ());
+		if($chunk === null){
+			return;
+		}
+		foreach($chunk->getTiles() as $tile){
+			if($tile instanceof TileItemFrame){
+				$block = $tile->getBlock();
+				if($block instanceof BlockItemFrame){
+					$player->getNetworkSession()->sendDataPacket(
+						BlockActorDataPacket::create(
+							BlockPosition::fromVector3($block->getPosition()),
+							$tile->getSerializedSpawnCompound()
+						)
+					);
+				}
+			}
+		}
+	}
+
+	public function onPlayerJoin(PlayerJoinEvent $event) : void{
+		$player = $event->getPlayer();
+
+		if(count($this->storage->getImages()) > 0){
+			foreach($this->storage->getCachedPackets() as $_ => $packet){
+				$player->getNetworkSession()->sendDataPacket($packet);
+			}
+		}
+	}
 }

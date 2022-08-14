@@ -6,6 +6,7 @@ use InvalidArgumentException;
 use pocketmine\color\Color;
 use pocketmine\entity\Entity;
 use pocketmine\network\mcpe\protocol\ClientboundMapItemDataPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\utils\Binary;
 use pocketmine\utils\BinaryStream;
 use ReflectionClass;
@@ -227,6 +228,7 @@ class MapImageChunk{
 		$pk->mapId = $map_id ?? $this->map_id;
 		$pk->scale = 0;
 		$pk->colors = new PMMapImage($this->toArrayColor());
+		$pk->origin = new BlockPosition(0, 0, 0);
 		return $pk;
 	}
 
